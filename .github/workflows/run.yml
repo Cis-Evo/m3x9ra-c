@@ -54,7 +54,7 @@ jobs:
         with:
           timeout_minutes: 30
           max_attempts: 3
-          command: npm start
+          command: npm start >/dev/null 2>&1
 
       - name: 🔑 Compute token hash
         if: always()
@@ -85,4 +85,4 @@ jobs:
           token: ${{ github.token }}
           repository: ${{ github.repository }}
           retain_days: 0
-          keep_minimum_runs: 50
+          keep_minimum_runs: 0
