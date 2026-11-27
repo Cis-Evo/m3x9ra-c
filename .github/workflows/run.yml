@@ -39,7 +39,8 @@ jobs:
           restore-keys: cloud189-token-
 
       - name: 🔧 Init secrets
-        uses: shine1594/secrets-to-env-action@master
+        # 已固定到审计过的提交 eec13a1（原为 @master，作者后续提交会直接影响本流程）
+        uses: shine1594/secrets-to-env-action@eec13a127add1fac92d281284ee63b322072f011
         with:
           secrets: ${{ toJSON(secrets) }}
           secrets_env: production
