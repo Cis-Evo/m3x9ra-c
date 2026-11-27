@@ -38,23 +38,44 @@ jobs:
           key: cloud189-token-${{ hashFiles('.token/*.json') }}
           restore-keys: cloud189-token-
 
-      - name: 🔧 Init secrets
-        uses: shine1594/secrets-to-env-action@master
-        with:
-          secrets: ${{ toJSON(secrets) }}
-          secrets_env: production
-          prefix_prod: ""
-          file_name_prod: .env
-
       - name: 📡 Init dependencies
         run: npm install
 
+      - name: 🔧 Init secrets
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: |
+          node - <<'JS'
+          const fs = require("fs");
+          const allow = /^(TY_ACCOUNTS|TY_USERNAME_\d+|TY_PASSWORD_\d+|BARK_KEY|BARK_SERVER|PUSH_PLUS_TOKEN|SENDKEY|SHOWDOC_KEY|TELEGRAM_BOT_TOKEN|TELEGRAM_CHAT_ID|WECOM_BOT_KEY|WECOM_BOT_TELPHONE|WX_PUSHER_APP_TOKEN|WX_PUSHER_UID)$/;
+          const all = JSON.parse(process.env.ALL_SECRETS || "{}");
+          const kept = [];
+          const skipped = [];
+          for (const [k, v] of Object.entries(all)) {
+            if (allow.test(k)) kept.push(`${k}=${v}`);
+            else skipped.push(k);
+          }
+          kept.sort();
+          fs.writeFileSync(".env", kept.join("\n"), { mode: 0o600 });
+          const names = kept.map((l) => l.slice(0, l.indexOf("=")));
+          console.log(`.env written: ${names.length} keys -> ${names.join(", ")}`);
+          console.log(`not written (program does not read them): ${skipped.join(", ") || "(none)"}`);
+          const has = (n) => names.includes(n);
+          if (!has("TY_ACCOUNTS") && !(has("TY_USERNAME_1") && has("TY_PASSWORD_1"))) {
+            console.log("::warning::No Cloud189 account secrets found (TY_ACCOUNTS or TY_USERNAME_1/TY_PASSWORD_1).");
+          }
+          JS
+
       - name: 🚀 Run
-        uses: nick-fields/retry@master
+        uses: nick-fields/retry@1c62e0697831d444be410bc770cc1576ab22de08 # master @ 2026-06-16
         with:
           timeout_minutes: 30
           max_attempts: 3
           command: npm start >/dev/null 2>&1
+
+      - name: 🧹 Remove .env
+        if: always()
+        run: rm -f .env
 
       - name: 🔑 Compute token hash
         if: always()
@@ -80,7 +101,7 @@ jobs:
           git push
 
       - name: 🎉 Delete old workflow run
-        uses: Mattraks/delete-workflow-runs@main
+        uses: Mattraks/delete-workflow-runs@0cf693bc9909e5e867ee8f27b813224ba862939c # main @ 2026-06-05
         with:
           token: ${{ github.token }}
           repository: ${{ github.repository }}
